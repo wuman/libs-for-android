@@ -280,6 +280,10 @@ public final class HtmlView extends TextView {
 
     @Override
     public void onRestoreInstanceState(Parcelable state) {
+        if (!(state instanceof SavedState)) {
+            super.onRestoreInstanceState(state);
+            return;
+        }
         SavedState ss = (SavedState) state;
         super.onRestoreInstanceState(ss.getSuperState());
         String html = ss.mHtml;
