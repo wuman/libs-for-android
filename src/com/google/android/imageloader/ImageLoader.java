@@ -397,6 +397,52 @@ public final class ImageLoader {
     }
 
     /**
+     * Synchronously request for a Bitmap
+     *
+     * @param url
+     * @return
+     */
+    public Bitmap synchronouslyRequestBitmap(String url) {
+        return synchronouslyRequestBitmap(url, 0);
+    }
+
+    /**
+     * Synchronously request for a Bitmap, with a timeout
+     *
+     * @param url
+     * @param timeout in milliseconds
+     * @return
+     */
+    public Bitmap synchronouslyRequestBitmap(String url, long millis) {
+        Bitmap bitmap = getBitmap(url);
+        ImageError error = getError(url);
+        if (bitmap != null) {
+            return bitmap;
+        } else {
+            if (error != null) {
+                return null;
+            } else {
+                Object lock = new Object();
+                SynchronousImageCallback callback = new SynchronousImageCallback(lock);
+                ImageRequest request = new ImageRequest(url, callback, true);
+                insertRequestAtFrontOfQueue(request);
+                synchronized (lock) {
+                    try {
+                        if (millis > 0) {
+                            lock.wait(millis);
+                        } else {
+                            lock.wait();
+                        }
+                    } catch (InterruptedException e) {
+                        // do nothing
+                    }
+                }
+                return callback.getBitmap();
+            }
+        }
+    }
+
+    /**
      * Binds a URL to an {@link ImageView} within an {@link android.widget.AdapterView}.
      *
      * @param adapter the adapter for the {@link android.widget.AdapterView}.
@@ -841,6 +887,35 @@ public final class ImageLoader {
     private interface ImageCallback {
         boolean unwanted();
         void send(String url, Bitmap bitmap, ImageError error);
+    }
+
+    private static final class SynchronousImageCallback implements ImageCallback {
+        private final Object mLock;
+        private Bitmap mBitmap;
+
+        public SynchronousImageCallback(Object lock) {
+            super();
+            mLock = lock;
+        }
+
+        /** {@inheritDoc} */
+        public boolean unwanted() {
+            // TODO Auto-generated method stub
+            return false;
+        }
+
+        /** {@inheritDoc} */
+        public void send(String url, Bitmap bitmap, ImageError error) {
+            mBitmap = bitmap;
+            synchronized (mLock) {
+                mLock.notify();
+            }
+        }
+
+        public Bitmap getBitmap() {
+            return mBitmap;
+        }
+
     }
 
     private final class ImageViewCallback implements ImageCallback {
