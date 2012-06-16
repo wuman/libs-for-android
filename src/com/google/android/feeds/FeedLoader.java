@@ -140,7 +140,11 @@ public class FeedLoader {
         do {
             // Get the rows for the current page
             Uri.Builder documentUri = baseDocumentUri.buildUpon();
-            documentUri.appendQueryParameter(indexParameter, Integer.toString(index));
+            if (indexParameter != null) {
+                documentUri.appendQueryParameter(indexParameter, Integer.toString(index));
+            } else {
+                documentUri.appendPath(Integer.toString(index));
+            }
             DocumentInfo document = loadDocument(handler, documentUri.build());
 
             int documentItemCount = document.itemCount();
@@ -198,7 +202,11 @@ public class FeedLoader {
         do {
             // Get the rows for the current page
             Uri.Builder documentUri = baseDocumentUri.buildUpon();
-            documentUri.appendQueryParameter(pageParameter, Integer.toString(page));
+            if (pageParameter != null) {
+                documentUri.appendQueryParameter(pageParameter, Integer.toString(page));
+            } else {
+                documentUri.appendPath(Integer.toString(page));
+            }
             DocumentInfo document = loadDocument(handler, documentUri.build());
 
             int documentItemCount = document.itemCount();
@@ -243,7 +251,11 @@ public class FeedLoader {
         do {
             Uri.Builder documentUri = baseDocumentUri.buildUpon();
             if (continuation != null) {
-                documentUri.appendQueryParameter(continuationParameter, continuation);
+                if (continuationParameter != null) {
+                    documentUri.appendQueryParameter(continuationParameter, continuation);
+                } else {
+                    documentUri.appendPath(continuation);
+                }
             }
             DocumentInfo document = loadDocument(handler, documentUri.build());
 
