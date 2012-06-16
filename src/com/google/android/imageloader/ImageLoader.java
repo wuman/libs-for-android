@@ -125,7 +125,7 @@ public final class ImageLoader {
          * @param view the {@link ImageView} that was loaded.
          * @param url the URL that was loaded.
          */
-        void onImageLoaded(ImageView view, String url);
+        void onImageLoaded(ImageView view, String url, boolean isFromMemCache);
 
         /**
          * Notifies an observer that an image could not be loaded.
@@ -525,7 +525,7 @@ public final class ImageLoader {
         if (bitmap != null) {
             view.setImageBitmap(bitmap);
             if (callback != null) {
-                callback.onImageLoaded(view, url);
+                callback.onImageLoaded(view, url, true);
             }
             return BindResult.OK;
         } else {
@@ -872,7 +872,7 @@ public final class ImageLoader {
             if (bitmap != null) {
                 mImageView.setImageBitmap(bitmap);
                 if (mCallback != null) {
-                    mCallback.onImageLoaded(mImageView, url);
+                    mCallback.onImageLoaded(mImageView, url, false);
                 }
             } else if (error != null) {
                 if (mCallback != null) {
