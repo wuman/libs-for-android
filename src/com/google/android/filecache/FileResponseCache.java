@@ -176,7 +176,7 @@ public abstract class FileResponseCache extends ResponseCache {
     protected boolean isStale(File file, URI uri, String requestMethod,
             Map<String, List<String>> requestHeaders, Object cookie) {
         // TODO: Implement a more robust Cache-Control parser
-        List<String> values = requestHeaders.get("cache-control");
+        List<String> values = requestHeaders == null ? null : requestHeaders.get("cache-control");
         if (values != null) {
             for (String value : values) {
                 if (value.startsWith(MAX_AGE_PREFIX)) {
@@ -368,7 +368,7 @@ public abstract class FileResponseCache extends ResponseCache {
      * @param file the file containing the cached response.
      * @return the {@link CacheResponse}.
      */
-    private CacheResponse createCacheResponse(File file) {
+    protected CacheResponse createCacheResponse(File file) {
         return new FileCacheResponse(file);
     }
 
@@ -516,16 +516,14 @@ public abstract class FileResponseCache extends ResponseCache {
         return new SinkContentHandler();
     }
 
-    private static class FileResponseCacheContentHandler extends ContentHandler {
-        private final ContentHandler mContentHandler;
-
+    private static class FileResponseCacheContentHandler extends WrappedContentHandler {
         private final Object mCookie;
 
         private final FileResponseCache mFileResponseCache;
 
         public FileResponseCacheContentHandler(ContentHandler contentHandler,
                 FileResponseCache fileResponseCache, Object cookie) {
-            mContentHandler = contentHandler;
+            super(contentHandler);
             mFileResponseCache = fileResponseCache;
             mCookie = cookie;
         }
@@ -543,7 +541,7 @@ public abstract class FileResponseCache extends ResponseCache {
             }
             stack.push(frame);
             try {
-                Object content = mContentHandler.getContent(connection);
+                Object content = getContentHandler().getContent(connection);
                 frame.close();
                 return content;
             } catch (IOException e) {

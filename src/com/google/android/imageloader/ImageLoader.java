@@ -16,6 +16,10 @@
 
 package com.google.android.imageloader;
 
+import com.google.android.filecache.CachedContentHandler;
+import com.google.android.filecache.FullyCached;
+import com.google.android.filecache.WrappedContentHandler;
+
 import android.app.Activity;
 import android.app.Application;
 import android.content.ContentResolver;
@@ -41,7 +45,9 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.CacheResponse;
 import java.net.ContentHandler;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
@@ -167,6 +173,8 @@ public final class ImageLoader {
         return uri.getScheme();
     }
 
+    private final FullyCached mFileCache;
+
     private final ContentHandler mBitmapContentHandler;
 
     private final ContentHandler mPrefetchContentHandler;
@@ -229,6 +237,8 @@ public final class ImageLoader {
      *            only needs to load images over HTTP or if a custom
      *            {@link URLStreamHandlerFactory} has already been passed to
      *            {@link URL#setURLStreamHandlerFactory(URLStreamHandlerFactory)}
+     * @param fileCache a {@link FullyCached} for loading images from the file
+     *            system.
      * @param bitmapHandler a {@link ContentHandler} for loading images.
      *            {@link ContentHandler#getContent(URLConnection)} must either
      *            return a {@link Bitmap} or throw an {@link IOException}. This
@@ -247,7 +257,7 @@ public final class ImageLoader {
      *            {@code} null for the main thread.
      * @throws NullPointerException if the factory is {@code null}.
      */
-    public ImageLoader(int taskLimit, URLStreamHandlerFactory streamFactory,
+    public ImageLoader(int taskLimit, URLStreamHandlerFactory streamFactory, FullyCached fileCache,
             ContentHandler bitmapHandler, ContentHandler prefetchHandler, long cacheSize,
             Handler handler) {
         if (taskLimit < 1) {
@@ -259,6 +269,7 @@ public final class ImageLoader {
         mMaxTaskCount = taskLimit;
         mURLStreamHandlerFactory = streamFactory;
         mStreamHandlers = streamFactory != null ? new HashMap<String, URLStreamHandler>() : null;
+        mFileCache = fileCache;
         mBitmapContentHandler = bitmapHandler != null ? bitmapHandler : new BitmapContentHandler();
         mPrefetchContentHandler = prefetchHandler;
 
@@ -271,6 +282,12 @@ public final class ImageLoader {
         // by the UI thread and by background threads.
         mBitmaps = Collections.synchronizedMap(new BitmapCache<String>(cacheSize));
         mErrors = Collections.synchronizedMap(new LruCache<String, ImageError>());
+    }
+
+    public ImageLoader(int taskLimit, URLStreamHandlerFactory streamFactory,
+            ContentHandler bitmapHandler, ContentHandler prefetchHandler, long cacheSize,
+            Handler handler) {
+        this(taskLimit, streamFactory, null, bitmapHandler, prefetchHandler, cacheSize, handler);
     }
 
     /**
@@ -802,8 +819,29 @@ public final class ImageLoader {
         }
 
         private Bitmap loadImage(URL url) throws IOException {
-            URLConnection connection = url.openConnection();
-            return (Bitmap) mBitmapContentHandler.getContent(connection);
+            Bitmap bitmap = null;
+            if (mFileCache != null) {
+                try {
+                    CacheResponse cacheResponse = mFileCache.getCached(url.toURI(), null, null);
+                    if (mBitmapContentHandler instanceof CachedContentHandler) {
+                        bitmap = (Bitmap) ((CachedContentHandler) mBitmapContentHandler)
+                                .getContent(cacheResponse);
+                    } else if (mBitmapContentHandler instanceof WrappedContentHandler) {
+                        ContentHandler wrappedContentHandler = ((WrappedContentHandler) mBitmapContentHandler)
+                                .getContentHandler();
+                        if (wrappedContentHandler instanceof CachedContentHandler) {
+                            bitmap = (Bitmap) ((CachedContentHandler) wrappedContentHandler)
+                                    .getContent(cacheResponse);
+                        }
+                    }
+                } catch (URISyntaxException e) {
+                }
+            }
+            if (bitmap == null) {
+                URLConnection connection = url.openConnection();
+                bitmap = (Bitmap) mBitmapContentHandler.getContent(connection);
+            }
+            return bitmap;
         }
 
         /**
