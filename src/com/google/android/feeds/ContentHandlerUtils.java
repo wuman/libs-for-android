@@ -144,6 +144,10 @@ public final class ContentHandlerUtils {
         InputStream input = getUncompressedInputStream(connection);
         try {
             InputStreamReader reader = new InputStreamReader(input, charset);
+            if (!charset.equalsIgnoreCase("utf-8")) {
+                input = new ReaderInputStream(reader, "utf-8");
+                reader = new InputStreamReader(input, "utf-8");
+            }
             StringBuilder builder = new StringBuilder(contentLength);
             char[] buffer = new char[1024];
             for (int n = reader.read(buffer); n != -1; n = reader.read(buffer)) {
