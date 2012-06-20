@@ -516,7 +516,7 @@ public abstract class FileResponseCache extends ResponseCache {
         return new SinkContentHandler();
     }
 
-    private static class FileResponseCacheContentHandler extends WrappedContentHandler {
+    public static class FileResponseCacheContentHandler extends WrappedContentHandler {
         private final Object mCookie;
 
         private final FileResponseCache mFileResponseCache;
@@ -526,6 +526,10 @@ public abstract class FileResponseCache extends ResponseCache {
             super(contentHandler);
             mFileResponseCache = fileResponseCache;
             mCookie = cookie;
+        }
+
+        public Object getCookie() {
+            return mCookie;
         }
 
         @Override

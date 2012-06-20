@@ -17,6 +17,7 @@
 package com.google.android.imageloader;
 
 import com.google.android.filecache.CachedContentHandler;
+import com.google.android.filecache.FileResponseCache.FileResponseCacheContentHandler;
 import com.google.android.filecache.FullyCached;
 import com.google.android.filecache.WrappedContentHandler;
 
@@ -820,21 +821,26 @@ public final class ImageLoader {
 
         private Bitmap loadImage(URL url) throws IOException {
             Bitmap bitmap = null;
-            if (mFileCache != null) {
+            if (mFileCache != null
+                    && mBitmapContentHandler instanceof FileResponseCacheContentHandler) {
                 try {
-                    CacheResponse cacheResponse = mFileCache.getCached(url.toURI(), null, null);
+                    Object cookie = ((FileResponseCacheContentHandler) mBitmapContentHandler)
+                            .getCookie();
+                    CacheResponse cacheResponse = mFileCache.getCached(url.toURI(), null, null,
+                            cookie);
                     if (mBitmapContentHandler instanceof CachedContentHandler) {
                         bitmap = (Bitmap) ((CachedContentHandler) mBitmapContentHandler)
-                                .getContent(cacheResponse);
+                                .getContent(url, cacheResponse);
                     } else if (mBitmapContentHandler instanceof WrappedContentHandler) {
                         ContentHandler wrappedContentHandler = ((WrappedContentHandler) mBitmapContentHandler)
                                 .getContentHandler();
                         if (wrappedContentHandler instanceof CachedContentHandler) {
                             bitmap = (Bitmap) ((CachedContentHandler) wrappedContentHandler)
-                                    .getContent(cacheResponse);
+                                    .getContent(url, cacheResponse);
                         }
                     }
                 } catch (URISyntaxException e) {
+                    // Revert to getContent(URLConnection)
                 }
             }
             if (bitmap == null) {

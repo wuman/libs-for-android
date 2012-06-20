@@ -10,6 +10,6 @@ import java.util.Map;
 public interface FullyCached {
 
     public CacheResponse getCached(URI uri, String requestMethod,
-            Map<String, List<String>> requestHeaders) throws IOException;
+            Map<String, List<String>> requestHeaders, Object cookie) throws IOException;
 
 }

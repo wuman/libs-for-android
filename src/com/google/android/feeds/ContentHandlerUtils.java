@@ -25,9 +25,12 @@ import org.apache.http.protocol.HTTP;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.CacheResponse;
 import java.net.ContentHandler;
 import java.net.HttpURLConnection;
 import java.net.URLConnection;
+import java.util.List;
+import java.util.Map;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
@@ -65,6 +68,32 @@ public final class ContentHandlerUtils {
     }
 
     /**
+     * Returns the character set of the content provided by the given
+     * {@link CacheResponse} headers.
+     *
+     * @param cacheResponseHeaders
+     * @return
+     * @throws IOException
+     */
+    public static String getCharSet(Map<String, List<String>> cacheResponseHeaders)
+            throws IOException {
+        List<String> contentTypes = cacheResponseHeaders.get("content-type");
+        String contentType = contentTypes != null && contentTypes.size() > 0 ? contentTypes.get(0)
+                : null;
+        if (contentType != null) {
+            HeaderValueParser parser = new BasicHeaderValueParser();
+            HeaderElement[] values = BasicHeaderValueParser.parseElements(contentType, parser);
+            if (values.length > 0) {
+                NameValuePair param = values[0].getParameterByName("charset");
+                if (param != null) {
+                    return param.getValue();
+                }
+            }
+        }
+        return HTTP.DEFAULT_CONTENT_CHARSET;
+    }
+
+    /**
      * Returns the uncompressed {@link InputStream} for the given
      * {@link URLConnection}.
      */
@@ -72,6 +101,23 @@ public final class ContentHandlerUtils {
             throws IOException {
         InputStream source = connection.getInputStream();
         String encoding = connection.getContentEncoding();
+        if ("gzip".equalsIgnoreCase(encoding)) {
+            return new GZIPInputStream(source);
+        } else if ("deflate".equalsIgnoreCase(encoding)) {
+            boolean noHeader = true;
+            Inflater inflater = new Inflater(noHeader);
+            return new InflaterInputStream(source, inflater);
+        } else {
+            return source;
+        }
+    }
+
+    public static InputStream getUncompressedInputStream(CacheResponse cacheResponse)
+            throws IOException {
+        InputStream source = cacheResponse.getBody();
+        Map<String, List<String>> headers = cacheResponse.getHeaders();
+        String encoding = headers.containsKey("content-encoding") ? headers.get("content-encoding")
+                .get(0) : null;
         if ("gzip".equalsIgnoreCase(encoding)) {
             return new GZIPInputStream(source);
         } else if ("deflate".equalsIgnoreCase(encoding)) {

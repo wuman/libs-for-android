@@ -16,13 +16,20 @@
 
 package com.google.android.feeds;
 
+import com.google.android.filecache.CachedContentHandler;
+import com.google.android.filecache.FileResponseCache.FileResponseCacheContentHandler;
+import com.google.android.filecache.FullyCached;
+import com.google.android.filecache.WrappedContentHandler;
+
 import android.database.MatrixCursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Bundle;
 
 import java.io.IOException;
+import java.net.CacheResponse;
 import java.net.ContentHandler;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 
@@ -71,11 +78,35 @@ public class FeedLoader {
         }
     }
 
-    private static DocumentInfo loadDocument(ContentHandler handler, Uri uri) throws IOException {
+    private static DocumentInfo loadDocument(FullyCached fileCache, ContentHandler handler, Uri uri)
+            throws IOException {
         String spec = uri.toString();
         URL url = new URL(spec);
-        URLConnection connection = url.openConnection();
-        Object content = handler.getContent(connection);
+
+        Object content = null;
+        if (fileCache != null && handler instanceof FileResponseCacheContentHandler) {
+            try {
+                Object cookie = ((FileResponseCacheContentHandler) handler).getCookie();
+                CacheResponse cacheResponse = fileCache.getCached(URI.create(uri.toString()), null,
+                        null, cookie);
+                if (handler instanceof CachedContentHandler) {
+                    content = ((CachedContentHandler) handler).getContent(url, cacheResponse);
+                } else if (handler instanceof WrappedContentHandler) {
+                    ContentHandler wrappedContentHandler = ((WrappedContentHandler) handler)
+                            .getContentHandler();
+                    if (wrappedContentHandler instanceof CachedContentHandler) {
+                        content = ((CachedContentHandler) wrappedContentHandler).getContent(url,
+                                cacheResponse);
+                    }
+                }
+            } catch (Exception e) {
+                // Revert to getContent(URLConnection);
+            }
+        }
+        if (content == null) {
+            URLConnection connection = url.openConnection();
+            content = handler.getContent(connection);
+        }
         if (content instanceof DocumentInfo) {
             return (DocumentInfo) content;
         } else {
@@ -97,7 +128,11 @@ public class FeedLoader {
      * @throws IOException if there is an error loading one of the documents.
      */
     public static void loadFeed(ContentHandler handler, Uri documentUri) throws IOException {
-        loadDocument(handler, documentUri);
+        loadDocument(null, handler, documentUri);
+    }
+
+    public static void loadFeed(FullyCached fileCache, ContentHandler handler, Uri documentUri) throws IOException {
+        loadDocument(fileCache, handler, documentUri);
     }
 
     /**
@@ -145,7 +180,7 @@ public class FeedLoader {
             } else {
                 documentUri.appendPath(Integer.toString(index));
             }
-            DocumentInfo document = loadDocument(handler, documentUri.build());
+            DocumentInfo document = loadDocument(null, handler, documentUri.build());
 
             int documentItemCount = document.itemCount();
             if (documentItemCount < 0) {
@@ -207,7 +242,7 @@ public class FeedLoader {
             } else {
                 documentUri.appendPath(Integer.toString(page));
             }
-            DocumentInfo document = loadDocument(handler, documentUri.build());
+            DocumentInfo document = loadDocument(null, handler, documentUri.build());
 
             int documentItemCount = document.itemCount();
             if (documentItemCount < 0) {
@@ -257,7 +292,7 @@ public class FeedLoader {
                     documentUri.appendPath(continuation);
                 }
             }
-            DocumentInfo document = loadDocument(handler, documentUri.build());
+            DocumentInfo document = loadDocument(null, handler, documentUri.build());
 
             continuation = document.continuationToken();
             extras.putBoolean(FeedExtras.EXTRA_MORE, continuation != null);
