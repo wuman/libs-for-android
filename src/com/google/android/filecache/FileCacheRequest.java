@@ -41,10 +41,7 @@ class FileCacheRequest extends CacheRequest {
 
     private static File createTempFile(File file) throws IOException {
         String prefix = file.getName();
-        while (prefix.length() < 3) {
-            // The prefix must be at least three characters long
-            prefix += "_";
-        }
+        prefix += ("_" + RandomUtil.getInstance().nextInt(100) + "_");
         String suffix = null; // Use the default: .tmp
         File directory = file.getParentFile();
         File temp = File.createTempFile(prefix, suffix, directory);
@@ -185,7 +182,7 @@ class FileCacheRequest extends CacheRequest {
     private static class TempFileOutputStream extends FilterOutputStream {
 
         private final FileDescriptor mFileDescriptor;
-        
+
         private final File mTempFile;
 
         private final File mFile;
