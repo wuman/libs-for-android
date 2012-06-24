@@ -70,6 +70,8 @@ public abstract class FileResponseCache extends ResponseCache {
 
     private static final String MAX_AGE_PREFIX = "max-age=";
 
+    private static final boolean DEBUG = false;
+
     /**
      * Logs an error message about a file.
      * <p>
@@ -284,6 +286,9 @@ public abstract class FileResponseCache extends ResponseCache {
             throws IOException {
         Stack<Frame> stack = mStack.get();
         if (stack == null || stack.isEmpty()) {
+            if (DEBUG) {
+                Log.d("wuman", "get: null (stack), " + uri.toString());
+            }
             return null;
         }
         Frame frame = stack.peek();
@@ -300,8 +305,15 @@ public abstract class FileResponseCache extends ResponseCache {
         File file = getFile(uri, requestMethod, requestHeaders, cookie);
         if (file != null && file.exists()
                 && !isStale(file, uri, requestMethod, requestHeaders, cookie)) {
+            if (DEBUG) {
+                Log.d("wuman", "get: " + file.getName() + ", " + uri.toString());
+            }
             return createCacheResponse(file);
         } else {
+            if (DEBUG) {
+                Log.d("wuman", "get: null (file: " + (file == null ? "null" : file.getName())
+                        + "), " + uri.toString());
+            }
             return null;
         }
     }
@@ -312,10 +324,16 @@ public abstract class FileResponseCache extends ResponseCache {
     @Override
     public CacheRequest put(URI uri, URLConnection connection) throws IOException {
         if (!isCacheable(connection)) {
+            if (DEBUG) {
+                Log.d("wuman", "put: null, " + connection.getURL().toString());
+            }
             return null;
         }
         Stack<Frame> stack = mStack.get();
         if (stack == null || stack.isEmpty()) {
+            if (DEBUG) {
+                Log.d("wuman", "put: null, " + connection.getURL().toString());
+            }
             return null;
         }
         Frame frame = stack.peek();
@@ -328,18 +346,30 @@ public abstract class FileResponseCache extends ResponseCache {
             File parent = file.getParentFile();
             if (parent == null) {
                 logFileError("File has no parent directory", file);
+                if (DEBUG) {
+                    Log.d("wuman", "put: null, " + connection.getURL().toString());
+                }
                 return null;
             }
             if (!parent.exists() && !parent.mkdirs()) {
                 logFileError("Unable to create parent directory", parent);
+                if (DEBUG) {
+                    Log.d("wuman", "put: null, " + connection.getURL().toString());
+                }
                 return null;
             }
             if (parent.exists() && !parent.isDirectory()) {
                 logFileError("Parent is not a directory", parent);
+                if (DEBUG) {
+                    Log.d("wuman", "put: null, " + connection.getURL().toString());
+                }
                 return null;
             }
             if (file.exists() && file.isDirectory()) {
                 logFileError("Destination file is a directory", file);
+                if (DEBUG) {
+                    Log.d("wuman", "put: null, " + connection.getURL().toString());
+                }
                 return null;
             }
 
@@ -349,8 +379,14 @@ public abstract class FileResponseCache extends ResponseCache {
             // the HttpURLConnection implementation when it should not be.
             // FileResponseCacheContentHandler is responsible for
             // aborting the CacheRequest instead.
+            if (DEBUG) {
+                Log.d("wuman", "put: " + file.getName() + ", " + connection.getURL().toString());
+            }
             return new UnabortableCacheRequest(cacheRequest);
         } else {
+            if (DEBUG) {
+                Log.d("wuman", "put: null, " + connection.getURL().toString());
+            }
             return null;
         }
     }
