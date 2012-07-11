@@ -16,6 +16,7 @@
 
 package com.google.android.accounts;
 
+import android.annotation.TargetApi;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.os.Bundle;
@@ -28,6 +29,7 @@ import android.os.Bundle;
  * {@link CupcakeContentSyncer}, it does not use any of the functionality
  * provided by {@link CupcakeContentSyncer}.
  */
+@TargetApi(8)
 class FroyoContentSyncer extends EclairContentSyncer {
 
     public FroyoContentSyncer(Context context) {
